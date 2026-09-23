@@ -1,6 +1,6 @@
 import logging
 import os
-from collections.abc import Callable, Generator
+from collections.abc import Generator
 from importlib.metadata import EntryPoint, EntryPoints
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -10,18 +10,9 @@ import pytest
 from ymmsl.io import load
 from ymmsl.v0_2.configuration import Configuration
 from ymmsl.v0_2.identity import Reference
-from ymmsl.v0_2.resolver import resolve as resolve_impl
+from ymmsl.v0_2.resolver import resolve
 
 Ref = Reference
-Resolve = Callable[[Reference, Configuration], None]
-
-
-@pytest.fixture(params=[False, True])
-def resolve(request: pytest.FixtureRequest) -> Resolve:
-    def resolve_config(module: Reference, config: Configuration) -> None:
-        resolve_impl(module, config, reuse_cached_imports=request.param)
-
-    return resolve_config
 
 
 @pytest.fixture
@@ -38,7 +29,7 @@ def env_ymmsl_path() -> Generator[None, None, None]:
     del os.environ["YMMSL_PATH"]
 
 
-def test_resolve_imports(env_ymmsl_path: None, resolve: Resolve) -> None:
+def test_resolve_imports(env_ymmsl_path: None) -> None:
     ymmsl = (
         "ymmsl_version: v0.2\n"
         "description: Testing resolving imports\n"
@@ -60,9 +51,7 @@ def test_resolve_imports(env_ymmsl_path: None, resolve: Resolve) -> None:
     assert config.programs[Reference("a.b.c.macro")].executable == Path("my_program")
 
 
-def test_apply_custom_implementations_simple(
-    env_ymmsl_path: None, resolve: Resolve
-) -> None:
+def test_apply_custom_implementations_simple(env_ymmsl_path: None) -> None:
     # should import a model, and substitute a local program into it
     # then check that we have a single root model
     ymmsl = (
@@ -88,7 +77,7 @@ def test_apply_custom_implementations_simple(
     assert c.implementation == "a.b.c.macro"
 
 
-def test_apply_custom_implementations(env_ymmsl_path: None, resolve: Resolve) -> None:
+def test_apply_custom_implementations(env_ymmsl_path: None) -> None:
     ymmsl = (
         "ymmsl_version: v0.2\n"
         "description: Testing resolving imports with custom_implementations\n"
@@ -130,9 +119,7 @@ def test_apply_custom_implementations(env_ymmsl_path: None, resolve: Resolve) ->
     assert config.programs[Reference("a.g.macro2")].args == ["/home/user/macro2.py"]
 
 
-def test_apply_custom_implementations_double_use(
-    env_ymmsl_path: None, resolve: Resolve
-) -> None:
+def test_apply_custom_implementations_double_use(env_ymmsl_path: None) -> None:
     ymmsl = (
         "ymmsl_version: v0.2\n"
         "description: |\n"
@@ -184,9 +171,7 @@ def test_apply_custom_implementations_double_use(
     assert config.programs[Reference("a.h.macro2")].args == ["/home/user/macro2.py"]
 
 
-def test_apply_custom_implementations_set_none(
-    env_ymmsl_path: None, resolve: Resolve
-) -> None:
+def test_apply_custom_implementations_set_none(env_ymmsl_path: None) -> None:
     ymmsl = (
         "ymmsl_version: v0.2\n"
         "description: Testing resolving imports with custom_implementations\n"
@@ -218,7 +203,7 @@ def test_apply_custom_implementations_set_none(
     assert model.components[Reference("micro")].implementation is None
 
 
-def test_apply_custom_implementations_no_hidden_copies(resolve: Resolve) -> None:
+def test_apply_custom_implementations_no_hidden_copies() -> None:
     ymmsl = (
         "ymmsl_version: v0.2\n"
         "description: |\n"
@@ -291,9 +276,7 @@ def test_apply_custom_implementations_no_hidden_copies(resolve: Resolve) -> None
     assert a.components[Reference("c1")].implementation == "no_copies2.p"
 
 
-def test_apply_custom_implementations_everything_localised(
-    env_ymmsl_path: None, resolve: Resolve
-) -> None:
+def test_apply_custom_implementations_everything_localised() -> None:
     ymmsl = (
         "ymmsl_version: v0.2\n"
         "description: |\n"
@@ -350,9 +333,7 @@ def test_apply_custom_implementations_everything_localised(
     assert b.components[Ref("macro")].implementation == "el.p"
 
 
-def test_apply_custom_implementations_cut_branch(
-    env_ymmsl_path: None, resolve: Resolve
-) -> None:
+def test_apply_custom_implementations_cut_branch(env_ymmsl_path: None) -> None:
     ymmsl = (
         "ymmsl_version: v0.2\n"
         "description: |\n"
@@ -388,9 +369,7 @@ def test_apply_custom_implementations_cut_branch(
     assert len(config.models) == 1
 
 
-def test_apply_custom_implementations_errors(
-    env_ymmsl_path: None, resolve: Resolve
-) -> None:
+def test_apply_custom_implementations_errors(env_ymmsl_path: None) -> None:
     ymmsl = (
         "ymmsl_version: v0.2\n"
         "description: |\n"
@@ -466,9 +445,7 @@ def test_apply_custom_implementations_errors(
         resolve(Reference("test_resolve_imports"), config)
 
 
-def test_resolve_imports_module_not_found(
-    env_ymmsl_path: None, resolve: Resolve
-) -> None:
+def test_resolve_imports_module_not_found(env_ymmsl_path: None) -> None:
     ymmsl = (
         "ymmsl_version: v0.2\n"
         "description: Testing missing modules\n"
@@ -486,7 +463,7 @@ def test_resolve_imports_module_not_found(
     assert len(config.imports) == 1
 
 
-def test_resolve_imports_broken_module(env_ymmsl_path: None, resolve: Resolve) -> None:
+def test_resolve_imports_broken_module(env_ymmsl_path: None) -> None:
     ymmsl = (
         "ymmsl_version: v0.2\n"
         "description: Testing missing modules\n"
@@ -504,9 +481,7 @@ def test_resolve_imports_broken_module(env_ymmsl_path: None, resolve: Resolve) -
     assert len(config.imports) == 1
 
 
-def test_resolve_imports_implementation_not_found(
-    env_ymmsl_path: None, resolve: Resolve
-) -> None:
+def test_resolve_imports_implementation_not_found(env_ymmsl_path: None) -> None:
     ymmsl = (
         "ymmsl_version: v0.2\n"
         "description: Testing missing modules\n"
@@ -524,7 +499,7 @@ def test_resolve_imports_implementation_not_found(
     assert len(config.imports) == 1
 
 
-def test_resolve_imports_no_shadowing(env_ymmsl_path: None, resolve: Resolve) -> None:
+def test_resolve_imports_no_shadowing(env_ymmsl_path: None) -> None:
     ymmsl = (
         "ymmsl_version: v0.2\n"
         "description: Testing resolving imports\n"
@@ -576,7 +551,7 @@ def mock_entry_points() -> Generator[Mock]:
         yield mock_entry_points
 
 
-def test_resolve_entrypoints(mock_entry_points: Mock, resolve: Resolve) -> None:
+def test_resolve_entrypoints(mock_entry_points: Mock) -> None:
     config = load("""
         ymmsl_version: v0.2
         description: Test
@@ -593,9 +568,8 @@ def test_resolve_entrypoints(mock_entry_points: Mock, resolve: Resolve) -> None:
 
 
 def test_resolve_entrypoints_duplicate_name(
-    mock_entry_points: Mock, caplog: pytest.LogCaptureFixture, resolve: Resolve
+    mock_entry_points: Mock, caplog: pytest.LogCaptureFixture
 ) -> None:
-
     config = load("""
         ymmsl_version: v0.2
         description: Test
@@ -619,9 +593,7 @@ def test_resolve_entrypoints_duplicate_name(
     assert config.programs[test_importing].args == ["test_program.py"]
 
 
-def test_resolve_entrypoints_loading_error(
-    mock_entry_points: Mock, resolve: Resolve
-) -> None:
+def test_resolve_entrypoints_loading_error(mock_entry_points: Mock) -> None:
     config = load("""
         ymmsl_version: v0.2
         description: Test

@@ -89,9 +89,7 @@ class ResolutionContext:
         )
 
 
-def resolve(
-    module: Reference, config: Configuration, reuse_cached_imports: bool = True
-) -> None:
+def resolve(module: Reference, config: Configuration) -> None:
     """Resolve imports for the given configuration.
 
     This updates the given configuration in place, removing all import statements and
@@ -102,16 +100,11 @@ def resolve(
     Args:
         module: The module corresponding to this configuration
         config: The configuration to resolve
-        reuse_cached_imports: If cached imports should be reused from previous calls of
-            this method. Disable if YMMSL_PATH or sys.path changes.
 
     Raises:
         RuntimeError: if an error occurs due to an invalid configuration. This will
             leave config in a broken state, so reload it if you want to try again.
     """
-    if not reuse_cached_imports:
-        ymmsl_cache.clear()
-
     overwritten = do_resolve(Path("<main>"), module, config, ResolutionContext())
     remove_overwritten_implementations(config, overwritten)
 
